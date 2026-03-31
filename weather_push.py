@@ -21,15 +21,20 @@ SERVERCHAN_SENDKEY = os.environ.get('SERVERCHAN_SENDKEY', '')
 def get_chongqing_weather():
     """获取重庆天气预报"""
     try:
-        # 获取详细天气预报
-        url = "https://wttr.in/重庆?lang=zh&format=j1"
-        response = requests.get(url, timeout=10)
+        # 尝试获取详细天气预报（JSON格式）
+        url = "https://wttr.in/Chongqing?lang=zh&format=j1"
+        headers = {'User-Agent': 'curl/7.64.1'}
+        response = requests.get(url, headers=headers, timeout=15)
+        
+        if response.status_code != 200:
+            raise Exception(f"API返回错误：{response.status_code}")
+            
         data = response.json()
         
         # 当前天气
         current = data['current_condition'][0]
         current_temp = current['temp_C']
-        current_desc = current['lang_zh'][0]['value']
+        current_desc = current['lang_zh'][0]['value'] if 'lang_zh' in current else current['weatherDesc'][0]['value']
         humidity = current['humidity']
         wind = current['windspeedKmph']
         
@@ -40,7 +45,11 @@ def get_chongqing_weather():
             date = day['date']
             max_temp = day['maxtempC']
             min_temp = day['mintempC']
-            desc = day['hourly'][4]['lang_zh'][0]['value']
+            # 尝试获取中文描述，如果没有则用英文
+            try:
+                desc = day['hourly'][4]['lang_zh'][0]['value']
+            except:
+                desc = day['hourly'][4]['weatherDesc'][0]['value']
             forecast.append(f"{date}: {desc} {min_temp}-{max_temp}°C")
         
         # 构建消息
@@ -62,7 +71,26 @@ def get_chongqing_weather():
         return title, content
         
     except Exception as e:
-        return "天气预报获取失败", f"错误信息：{str(e)}"
+        # 如果JSON格式失败，尝试简单的文本格式
+        try:
+            url = "https://wttr.in/Chongqing?lang=zh&format=3"
+            headers = {'User-Agent': 'curl/7.64.1'}
+            response = requests.get(url, headers=headers, timeout=10)
+            weather_text = response.text.strip()
+            
+            title = "【重庆天气预报】"
+            content = f"""
+📅 {datetime.now().strftime('%Y年%m月%d日')}
+
+🌡️ 当前天气：
+{weather_text}
+
+💡 温馨提示：
+详细天气数据获取失败，仅显示简要信息
+"""
+            return title, content
+        except Exception as e2:
+            return "天气预报获取失败", f"错误信息：{str(e)}\n备用方案也失败：{str(e2)}"
 
 def send_to_wechat(title, content):
     """通过Server酱推送到微信"""
