@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 重庆天气预报推送脚本
-支持企业微信机器人推送
+支持 PushPlus、企业微信机器人、Server酱 多种推送方式
 """
 
 import requests
@@ -16,7 +16,10 @@ if sys.platform == 'win32':
     import io
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
-# 企业微信机器人 Webhook（需要配置）
+# PushPlus Token（推荐 - 直接推送到个人微信）
+PUSHPLUS_TOKEN = os.environ.get('PUSHPLUS_TOKEN', '')
+
+# 企业微信机器人 Webhook（备用方案）
 QYWX_WEBHOOK = os.environ.get('QYWX_WEBHOOK', '')
 
 # Server酱 SendKey（备用方案）
@@ -224,6 +227,41 @@ def get_chongqing_weather():
         except Exception as e2:
             return "天气预报获取失败", f"错误信息：{str(e)}\n备用方案也失败：{str(e2)}"
 
+def send_to_pushplus(title, content):
+    """通过 PushPlus 推送到个人微信（推荐）"""
+    if not PUSHPLUS_TOKEN:
+        print("错误：未配置 PUSHPLUS_TOKEN 环境变量")
+        return False
+    
+    url = "http://www.pushplus.plus/send"
+    
+    # PushPlus 使用 Markdown 格式
+    data = {
+        "token": PUSHPLUS_TOKEN,
+        "title": title,
+        "content": content,
+        "template": "markdown"
+    }
+    
+    try:
+        response = requests.post(
+            url,
+            data=json.dumps(data, ensure_ascii=False).encode('utf-8'),
+            headers={'Content-Type': 'application/json'},
+            timeout=10
+        )
+        result = response.json()
+        
+        if result.get('code') == 200:
+            print("PushPlus 推送成功")
+            return True
+        else:
+            print(f"PushPlus 推送失败：{result.get('msg')}")
+            return False
+    except Exception as e:
+        print(f"PushPlus 推送异常：{str(e)}")
+        return False
+
 def send_to_qywx(title, content):
     """通过企业微信机器人推送消息"""
     if not QYWX_WEBHOOK:
@@ -294,7 +332,15 @@ def main():
     
     print("开始推送消息...")
     
-    # 优先使用企业微信
+    # 优先使用 PushPlus（直接推送到个人微信）
+    if PUSHPLUS_TOKEN:
+        print("使用 PushPlus 推送到个人微信...")
+        success = send_to_pushplus(title, content)
+        if success:
+            print("任务完成")
+            return
+    
+    # 备用方案1：企业微信
     if QYWX_WEBHOOK:
         print("使用企业微信机器人推送...")
         success = send_to_qywx(title, content)
@@ -302,7 +348,7 @@ def main():
             print("任务完成")
             return
     
-    # 备用方案：Server酱
+    # 备用方案2：Server酱
     if SERVERCHAN_SENDKEY:
         print("使用Server酱推送...")
         success = send_to_wechat(title, content)
@@ -311,7 +357,10 @@ def main():
             return
     
     print("错误：未配置任何推送方式")
-    print("请配置 QYWX_WEBHOOK 或 SERVERCHAN_SENDKEY 环境变量")
+    print("请配置以下环境变量之一：")
+    print("  - PUSHPLUS_TOKEN（推荐，直接推送到个人微信）")
+    print("  - QYWX_WEBHOOK（企业微信机器人）")
+    print("  - SERVERCHAN_SENDKEY（Server酱）")
 
 if __name__ == "__main__":
     main()
