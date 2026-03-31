@@ -54,8 +54,7 @@ def get_chongqing_weather():
         
         # 构建消息
         title = "【重庆天气预报】"
-        content = f"""
-📅 {datetime.now().strftime('%Y年%m月%d日')}
+        content = f"""📅 {datetime.now().strftime('%Y年%m月%d日')}
 
 🌡️ 当前天气：
 {current_desc} {current_temp}°C
@@ -66,8 +65,7 @@ def get_chongqing_weather():
 {chr(10).join(forecast)}
 
 💡 温馨提示：
-记得根据天气增减衣物哦！
-"""
+记得根据天气增减衣物哦！"""
         return title, content
         
     except Exception as e:
@@ -76,18 +74,18 @@ def get_chongqing_weather():
             url = "https://wttr.in/Chongqing?lang=zh&format=3"
             headers = {'User-Agent': 'curl/7.64.1'}
             response = requests.get(url, headers=headers, timeout=10)
+            # 确保正确解码UTF-8
+            response.encoding = 'utf-8'
             weather_text = response.text.strip()
             
             title = "【重庆天气预报】"
-            content = f"""
-📅 {datetime.now().strftime('%Y年%m月%d日')}
+            content = f"""📅 {datetime.now().strftime('%Y年%m月%d日')}
 
 🌡️ 当前天气：
 {weather_text}
 
 💡 温馨提示：
-详细天气数据获取失败，仅显示简要信息
-"""
+详细天气数据获取失败，仅显示简要信息"""
             return title, content
         except Exception as e2:
             return "天气预报获取失败", f"错误信息：{str(e)}\n备用方案也失败：{str(e2)}"
